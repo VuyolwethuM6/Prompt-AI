@@ -23,6 +23,7 @@ export default function PromptEnhancer() {
   const [isEnhancing, setIsEnhancing] = useState(false)
   const [history, setHistory] = useState<Prompt[]>([])
   const [error, setError] = useState("")
+  const [anonymousPromptCount, setAnonymousPromptCount] = useState(0)
 
   useEffect(() => {
     if (session?.user) {
@@ -43,8 +44,8 @@ export default function PromptEnhancer() {
   }
 
   const enhancePrompt = async () => {
-    if (!session?.user) {
-      signIn()
+    if (!session?.user && anonymousPromptCount >= 3) {
+      setError("You've reached the limit of 3 prompts. Sign in to continue enhancing prompts!")
       return
     }
 
@@ -62,7 +63,12 @@ export default function PromptEnhancer() {
       
       const data = await response.json()
       setEnhancedPrompt(data.prompt.enhancedText)
-      await fetchHistory() // Refresh history after successful enhancement
+      
+      if (!session?.user) {
+        setAnonymousPromptCount(prev => prev + 1)
+      } else {
+        await fetchHistory()
+      }
     } catch (error) {
       console.error('Enhancement error:', error)
       setError('Failed to enhance prompt')
@@ -73,7 +79,6 @@ export default function PromptEnhancer() {
 
   return (
     <div className="min-h-screen bg-ai-dark">
-      {/* Static gradient background */}
       <div className="fixed inset-0 bg-gradient-to-br from-ai-gradient-start via-ai-gradient-end to-ai-dark opacity-20"></div>
       
       <header className="container mx-auto py-6 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center relative z-10">
@@ -137,12 +142,16 @@ export default function PromptEnhancer() {
                 <Card className="bg-ai-surface backdrop-blur-ai border-ai-border shadow-ai-neon rounded-lg">
                   <CardContent className="space-y-4 pt-6">
                     <Textarea 
-                      placeholder={session?.user ? "Enter your prompt here..." : "Sign in to enhance your prompts"}
+                      placeholder="Enter your prompt here..."
                       className="min-h-[120px] bg-ai-dark/50 border-ai-border text-ai-light placeholder:text-ai-light/50 rounded-md resize-none"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
-                      disabled={!session?.user}
                     />
+                    {!session?.user && (
+                      <p className="text-ai-light text-sm">
+                        {3 - anonymousPromptCount} prompts remaining. Sign in for unlimited prompts!
+                      </p>
+                    )}
                     {error && (
                       <p className="text-ai-error text-sm">{error}</p>
                     )}
@@ -161,17 +170,8 @@ export default function PromptEnhancer() {
                         </>
                       ) : (
                         <>
-                          {session?.user ? (
-                            <>
-                              Enhance Prompt
-                              <Wand2 className="ml-2 w-5 h-5" />
-                            </>
-                          ) : (
-                            <>
-                              Sign in to Start
-                              <Lock className="ml-2 w-5 h-5" />
-                            </>
-                          )}
+                          Enhance Prompt
+                          <Wand2 className="ml-2 w-5 h-5" />
                         </>
                       )}
                     </Button>
